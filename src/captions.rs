@@ -75,6 +75,20 @@ impl Captions {
         Ok(())
     }
 
+    pub fn finish(&mut self, ms: u64) -> Result<()> {
+        self.tick(ms, String::new())?;
+        if ms > self.sequence * 2000 {
+            self.publish()?;
+        }
+        let path = self.root.join("captions.m3u8");
+        if path.exists() {
+            let mut text = std::fs::read_to_string(&path)?;
+            text.push_str("#EXT-X-ENDLIST\n");
+            atomic_write(&path, &text)?;
+        }
+        Ok(())
+    }
+
     fn publish(&mut self) -> Result<()> {
         let start = self.sequence * 2000;
         let end = start + 2000;

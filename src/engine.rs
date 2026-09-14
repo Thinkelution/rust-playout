@@ -18,6 +18,8 @@ use std::{
 use tokio::sync::{broadcast, oneshot};
 
 pub enum Action {
+    StartChannel,
+    StopChannel,
     Register(Asset),
     Enqueue {
         asset_id: String,
@@ -64,15 +66,16 @@ pub fn run(handle: Handle, commands: Receiver<Command>, root: PathBuf) -> Result
     let mut state = handle.state.lock().unwrap().clone();
     let output_dir = root.join("hls").join(&state.session_id);
     std::fs::create_dir_all(&output_dir)?;
-    let mut output = Output::new(&output_dir.join("media.m3u8"), true)?;
+    let output = Output::new(&output_dir.join("media.m3u8"), true)?;
     let mut captions = Captions::new(&output_dir, output.caption_offset())?;
+    let mut output = Some(output);
     let mut compositor = Compositor::new()?;
     let mut current: Option<Active> = None;
     let mut prepared: Option<Prepared> = None;
     let mut take: Option<(String, String)> = None;
     let mut banner_art = None;
     let mut tick = 0_u64;
-    let start = Instant::now();
+    let mut start = Instant::now();
     state.status = "live".into();
     state.event("channel_started", "Continuous HLS output is running", None);
     while !handle.shutdown.load(Ordering::Relaxed) {
@@ -81,7 +84,77 @@ pub fn run(handle: Handle, commands: Receiver<Command>, root: PathBuf) -> Result
         for command in commands.try_iter().take(16) {
             let id = command.id.clone();
             let result: Result<serde_json::Value, String> = (|| {
+                if state.status != "live"
+                    && matches!(
+                        &command.action,
+                        Action::Take(_) | Action::Banner(..) | Action::StartPublish(_)
+                    )
+                {
+                    return Err("Start the channel first".into());
+                }
                 match command.action {
+                    Action::StartChannel => {
+                        if state.status == "stopping" {
+                            return Err("Channel is still stopping".into());
+                        }
+                        if state.status == "stopped" {
+                            let session = uuid::Uuid::new_v4().to_string();
+                            let dir = root.join("hls").join(&session);
+                            let opened = (|| -> Result<_> {
+                                std::fs::create_dir_all(&dir)?;
+                                let next = Output::new(&dir.join("media.m3u8"), true)?;
+                                let next_captions = Captions::new(&dir, next.caption_offset())?;
+                                Ok((next, next_captions))
+                            })()
+                            .map_err(|e| e.to_string())?;
+                            output = Some(opened.0);
+                            captions = opened.1;
+                            state.session_id = session;
+                            state.output_url = format!("/hls/{}/master.m3u8", state.session_id);
+                            tick = 0;
+                            state.program_ms = 0;
+                            state.late_frames = 0;
+                            state.underrun_frames = 0;
+                            state.publish = Default::default();
+                            start = Instant::now();
+                            state.status = "live".into();
+                            state.event(
+                                "channel_started",
+                                "Channel started with a fresh output session",
+                                Some(id.clone()),
+                            );
+                        }
+                    }
+                    Action::StopChannel => {
+                        if state.status == "live" {
+                            let active_output = output.as_mut().unwrap();
+                            active_output.stop_publish();
+                            active_output.finish().map_err(|e| e.to_string())?;
+                            captions
+                                .finish(state.program_ms)
+                                .map_err(|e| e.to_string())?;
+                            current = None;
+                            prepared = None;
+                            if let Some((pending, _)) = take.take() {
+                                state.event(
+                                    "command_cancelled",
+                                    "Channel stopped before take",
+                                    Some(pending),
+                                );
+                            }
+                            banner_art = None;
+                            state.current = None;
+                            state.preparing = None;
+                            state.next_ready = false;
+                            state.banner = None;
+                            state.status = "stopping".into();
+                            state.event(
+                                "channel_stopping",
+                                "Closing channel output and publisher",
+                                Some(id.clone()),
+                            );
+                        }
+                    }
                     Action::Register(asset) => {
                         state.assets.insert(asset.id.clone(), asset);
                     }
@@ -171,10 +244,12 @@ pub fn run(handle: Handle, commands: Receiver<Command>, root: PathBuf) -> Result
                         }
                     }
                     Action::StartPublish(request) => {
-                        output.start_publish(request)?;
+                        output.as_mut().unwrap().start_publish(request)?;
                     }
                     Action::StopPublish => {
-                        output.stop_publish();
+                        if let Some(output) = &output {
+                            output.stop_publish();
+                        }
                     }
                     Action::Volume(v) => {
                         if !v.is_finite() || !(0.0..=2.0).contains(&v) {
@@ -247,6 +322,24 @@ pub fn run(handle: Handle, commands: Receiver<Command>, root: PathBuf) -> Result
                 );
             }
             let _ = command.reply.send(result.map(|value| serde_json::json!({"command_id":id,"program_ms":state.program_ms,"result":value})));
+        }
+        if state.status != "live" {
+            if let Some(active_output) = &output {
+                state.publish = active_output.publish_state();
+                if active_output.publisher_finished() {
+                    output = None;
+                    state.status = "stopped".into();
+                    state.event(
+                        "channel_stopped",
+                        "Channel stopped; upcoming rundown retained",
+                        None,
+                    );
+                }
+            }
+            *handle.state.lock().unwrap() = state.clone();
+            let _ = handle.events.send(state.clone());
+            std::thread::sleep(Duration::from_millis(100));
+            continue;
         }
         if current
             .as_ref()
@@ -350,8 +443,9 @@ pub fn run(handle: Handle, commands: Receiver<Command>, root: PathBuf) -> Result
                 banner.remaining_ms,
             )?;
         }
-        output.write(&mut picture, tick, &audio)?;
-        let publish = output.publish_state();
+        let active_output = output.as_mut().unwrap();
+        active_output.write(&mut picture, tick, &audio)?;
+        let publish = active_output.publish_state();
         if publish.status != state.publish.status {
             state.event("publish_status", publish.message.clone(), None);
         }
@@ -376,7 +470,10 @@ pub fn run(handle: Handle, commands: Receiver<Command>, root: PathBuf) -> Result
             state.late_frames += 1;
         }
     }
-    output.finish()?;
+    if let Some(output) = &mut output {
+        output.stop_publish();
+        output.finish()?;
+    }
     state.status = "stopped".into();
     *handle.state.lock().unwrap() = state;
     Ok(())

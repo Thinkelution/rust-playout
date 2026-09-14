@@ -225,7 +225,6 @@ impl Output {
         )?);
         Ok(())
     }
-    #[cfg(test)]
     pub fn publisher_finished(&self) -> bool {
         self.publisher.as_ref().is_none_or(|p| p.finished())
     }

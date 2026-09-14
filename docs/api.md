@@ -102,3 +102,20 @@ it has stopped before starting another. Both use normal command acknowledgments.
 object, with `publish_status` events for transitions. Keys never appear in these
 responses. Failed starts require an explicit retry with the key. HLS is independent.
 RTMP carries composed video and audio; segmented WebVTT captions are HLS-only.
+
+## Channel start and stop
+
+Use **Stop channel** to end the current clip, remove the active banner and close
+HLS and RTMP publishing. Upcoming rundown items and the media library are retained.
+The program clock stops and the control service stays available. Existing viewers
+may finish buffered HLS media. There is no pause/resume behavior.
+
+Use **Start channel** to create a new HLS session and reset the clock. Playback
+begins with the next queued clip, or a slate when the rundown is empty. Publishing
+must be started separately with the stream key. The app still starts its initial
+channel automatically on launch.
+
+API: `POST /api/channel/stop` and `POST /api/channel/start`. Stop acknowledges the
+request; watch `state.status` transition through `stopping` to `stopped`. Start
+while stopping is rejected. Repeating start on a live channel or stop on a stopped
+channel is harmless. Take, ad insertion and publishing require a live channel.

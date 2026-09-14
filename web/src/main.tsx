@@ -309,6 +309,24 @@ function App() {
             <p>A continuous signal. A rundown you can change.</p>
           </div>
           <div className="heading-actions">
+            <button
+              className="button primary"
+              disabled={!connected || busy || channel?.status !== "stopped"}
+              onClick={() =>
+                void act("/channel/start", "POST", {}, "Channel started")
+              }
+            >
+              Start channel
+            </button>
+            <button
+              className="button secondary"
+              disabled={!ready || busy}
+              onClick={() =>
+                void act("/channel/stop", "POST", {}, "Channel stopping")
+              }
+            >
+              Stop channel
+            </button>
             <div className="program-clock">
               <span>PROGRAM CLOCK</span>
               <strong>{time(channel?.program_ms ?? 0)}</strong>
@@ -342,12 +360,18 @@ function App() {
               </div>
               <span className="muted small">1280 × 720 · 30 fps</span>
             </div>
-            {channel ? (
+            {channel?.status === "live" ? (
               <Player url={channel.output_url} />
             ) : (
               <div className="player connecting">
                 <Radio size={32} />
-                <p>Connecting to your channel</p>
+                <p>
+                  {channel?.status === "stopped"
+                    ? "Channel stopped — start when ready"
+                    : channel?.status === "stopping"
+                      ? "Stopping channel…"
+                      : "Connecting to your channel"}
+                </p>
               </div>
             )}
             <div className="monitor-info">
@@ -954,7 +978,7 @@ function App() {
               HTTP commands control the engine. WebSocket snapshots carry
               applied events and program time.
             </p>
-            <pre>{`GET    /api/state\nWS     /api/events\nPOST   /api/assets             multipart file\nPOST   /api/queue              { asset_id, after_id? }\nPUT    /api/queue/order        { ids: [...] }\nDELETE /api/queue/:id\nPOST   /api/take               { item_id? }\nPOST   /api/banner             { title, duration_ms, asset_id? }\nDELETE /api/banner\nPUT    /api/volume             { value: 0..2 }\nPUT    /api/queue/:id/captions  [{ start_ms, end_ms, text }]\nPOST   /api/clear\nPOST   /api/publish            { server_url, stream_key }\nDELETE /api/publish`}</pre>
+            <pre>{`GET    /api/state\nWS     /api/events\nPOST   /api/assets             multipart file\nPOST   /api/queue              { asset_id, after_id? }\nPUT    /api/queue/order        { ids: [...] }\nDELETE /api/queue/:id\nPOST   /api/take               { item_id? }\nPOST   /api/banner             { title, duration_ms, asset_id? }\nDELETE /api/banner\nPUT    /api/volume             { value: 0..2 }\nPUT    /api/queue/:id/captions  [{ start_ms, end_ms, text }]\nPOST   /api/channel/start\nPOST   /api/channel/stop\nPOST   /api/clear\nPOST   /api/publish            { server_url, stream_key }\nDELETE /api/publish`}</pre>
             <p>
               Bound to localhost. The engine continues when this tab closes.
             </p>

@@ -58,6 +58,8 @@ pub fn router(app: App) -> Router {
     let root = app.root.clone();
     Router::new()
         .route("/api/state", get(state))
+        .route("/api/channel/start", post(start_channel))
+        .route("/api/channel/stop", post(stop_channel))
         .route("/api/publish", post(start_publish).delete(stop_publish))
         .route("/api/events", get(events))
         .route("/api/assets", post(upload))
@@ -335,4 +337,11 @@ async fn start_publish(
 }
 async fn stop_publish(Extract(app): Extract<App>) -> Result<Json<serde_json::Value>, ApiError> {
     command(&app, Action::StopPublish).await
+}
+
+async fn start_channel(Extract(app): Extract<App>) -> Result<Json<serde_json::Value>, ApiError> {
+    command(&app, Action::StartChannel).await
+}
+async fn stop_channel(Extract(app): Extract<App>) -> Result<Json<serde_json::Value>, ApiError> {
+    command(&app, Action::StopChannel).await
 }

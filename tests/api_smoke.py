@@ -124,7 +124,42 @@ def run():
             assert b"#EXTINF:2.000000" in media
             request("/api/clear", "POST")
             until(lambda s: s["current"] is None and not s["queue"])
-            print("PASS: live API, MP4/PNG uploads, invalid media rejection, host/origin checks, reorder, captions, take events, timed artwork banner, HLS, clear-to-slate")
+            request("/api/queue", "POST", {"asset_id": "demo-1"})
+            until(lambda s: s["current"] is not None)
+            queued = request("/api/queue", "POST", {"asset_id": "demo-2"})
+            before_stop = request("/api/state")
+            request("/api/channel/stop", "POST")
+            stopped = until(lambda s: s["status"] == "stopped")
+            assert stopped["current"] is None and stopped["banner"] is None
+            assert len(stopped["queue"]) == 1
+            time.sleep(0.4)
+            assert request("/api/state")["program_ms"] == stopped["program_ms"]
+            for name in ["media.m3u8", "captions.m3u8"]:
+                assert b"#EXT-X-ENDLIST" in request(before_stop["output_url"].replace("master.m3u8", name))
+            request("/api/take", "POST", {}, expected=400)
+            request("/api/publish", "POST", {"server_url": "rtmp://127.0.0.1:1/live", "stream_key": "test"}, expected=400)
+            request("/api/channel/stop", "POST")
+            request("/api/channel/start", "POST")
+            restarted = until(lambda s: s["status"] == "live" and s["current"] is not None)
+            assert restarted["session_id"] != stopped["session_id"]
+            assert restarted["program_ms"] < stopped["program_ms"]
+            assert restarted["current"]["item"]["asset_id"] == "demo-2"
+            assert restarted["publish"]["status"] == "idle"
+            request("/api/channel/start", "POST")
+            assert request("/api/state")["session_id"] == restarted["session_id"]
+            until(lambda s: s["program_ms"] > 2500)
+            assert b"#EXTINF" in request(restarted["output_url"].replace("master.m3u8", "media.m3u8"))
+            with socket.socket() as stalled:
+                stalled.bind(("127.0.0.1", 0))
+                stalled.listen(1)
+                stalled.settimeout(5)
+                request("/api/publish", "POST", {"server_url": f"rtmp://127.0.0.1:{stalled.getsockname()[1]}/live", "stream_key": "test"})
+                connection, _ = stalled.accept()
+                with connection:
+                    request("/api/channel/stop", "POST")
+                    stopped = until(lambda s: s["status"] == "stopped")
+                    assert stopped["publish"]["status"] == "idle"
+            print("PASS: live API, MP4/PNG uploads, invalid media rejection, host/origin checks, reorder, captions, take events, timed artwork banner, HLS, clear-to-slate, channel stop/start and retained rundown")
         except Exception:
             log.flush()
             log.seek(0)
