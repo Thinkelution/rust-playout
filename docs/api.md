@@ -88,3 +88,17 @@ with H.264/AAC video/audio and an English WebVTT rendition. Each session has its
 own directory, preserving output URL identity through live edits. Segment target
 duration is two seconds and playlist window is six segments. Network errors,
 player buffering and machine load can increase visible delay.
+
+## RTMP / RTMPS publishing
+
+`POST /api/publish` accepts `{ "server_url": "rtmps://a.rtmps.youtube.com:443/live2", "stream_key": "YOUR_KEY" }`.
+The response acknowledges starting the worker, not successful ingestion. Only one
+publisher runs at a time. `DELETE /api/publish` requests disconnection; wait until
+it has stopped before starting another. Both use normal command acknowledgments.
+
+`state.publish` contains `status` (`idle`, `connecting`, `waiting_keyframe`,
+`publishing`, `stopping`, `failed`), `destination` (scheme/host/port only),
+`message`, `packets_sent` and `bytes_sent`. WebSocket snapshots include the same
+object, with `publish_status` events for transitions. Keys never appear in these
+responses. Failed starts require an explicit retry with the key. HLS is independent.
+RTMP carries composed video and audio; segmented WebVTT captions are HLS-only.

@@ -45,6 +45,7 @@ Ctrl-C stops the server and drains the encoders.
 
 - H.264 MP4 sources with AAC audio (video-only files get silence), up to 4K input.
 - Normalized 720p30 H.264 + 48 kHz stereo AAC, continuously encoded to HLS.
+- Independent RTMP/RTMPS publishing with start/stop controls and status.
 - Upload media, insert after a particular item, reorder, remove and take next.
 - Bounded independent decoder workers and prepared-next source.
 - Timed PNG/JPEG or text/color L-band, countdown, replace/remove and auto restore.
@@ -80,9 +81,35 @@ authentication layer. Upload limit: 250 MB per file. Artwork limit: 4096×4096.
 Rundown and captions are session state and are not restored after restart.
 Finished HLS sessions remain under `data/hls/`; retention across restarts is not
 automated. A filesystem/output failure marks the channel failed; automatic output
-recovery, RTMP, network/live inputs, crossfades, GPU acceleration, broadcast
+recovery, network/live inputs, crossfades, GPU acceleration, broadcast
 caption formats, multi-user edit conflicts and extended soak testing are future
 milestones. Sustained overload is reported, not guaranteed to meet real-time.
 
 This project links third-party native libraries. Packaging/distribution must
 account for the licenses of the actual FFmpeg build and enabled encoders.
+
+## Publish to YouTube
+
+In the web control room, use **YouTube / RTMP output**. Copy the streaming server
+URL and stream key from YouTube Live Control Room, then click **Start publishing**.
+Prefer the RTMPS server on port 443 ([YouTube requirements](https://developers.google.com/youtube/v3/live/guides/rtmps-ingestion)).
+The default server is editable; use the one assigned to your stream.
+Check preview/stream health in YouTube and use its Go Live control if required.
+If YouTube auto-start is enabled, starting the publisher can make the broadcast live.
+
+The current program, audio, source changes and composed L-ads are sent through the
+native libraries; no FFmpeg process is launched. Profile: 1280×720 at 30 fps,
+H.264 target 2.5 Mbps, two-second keyframes, AAC stereo 48 kHz at 128 kbps.
+This is the existing channel profile, not a configurable YouTube quality preset.
+WebVTT captions remain HLS-only. Stop publishing leaves HLS and playout running.
+A failed connection requires a manual restart and re-entering the key.
+
+Keys are not saved to disk or included in state/events. The password field clears
+on an accepted start. Native library logging is disabled because protocol errors
+can include credential-bearing URLs; sanitized publisher errors remain visible.
+The local control API remains unauthenticated and must not be exposed publicly.
+
+Verification includes a native loopback RTMP receiver decoding audio/video with
+monotonic timestamps, restart/failure isolation, and an HTTP test cancelling a
+stalled RTMP handshake while the channel keeps advancing. A real YouTube broadcast
+and successful RTMPS ingestion have not yet been tested.

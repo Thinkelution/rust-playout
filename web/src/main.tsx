@@ -23,6 +23,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import "./style.css";
+import { PublishPanel, type PublishState } from "./PublishPanel";
 
 type Asset = {
   id: string;
@@ -46,6 +47,7 @@ type Channel = {
   next_ready: boolean;
   banner: { title: string; remaining_ms: number; expires_at_ms: number } | null;
   volume: number;
+  publish: PublishState;
   late_frames: number;
   underrun_frames: number;
   events: {
@@ -853,6 +855,7 @@ function App() {
               </p>
             </form>
           </section>
+          <PublishPanel state={channel?.publish} ready={ready} />
           <section className="panel events">
             <div className="panel-heading">
               <div>
@@ -951,7 +954,7 @@ function App() {
               HTTP commands control the engine. WebSocket snapshots carry
               applied events and program time.
             </p>
-            <pre>{`GET    /api/state\nWS     /api/events\nPOST   /api/assets             multipart file\nPOST   /api/queue              { asset_id, after_id? }\nPUT    /api/queue/order        { ids: [...] }\nDELETE /api/queue/:id\nPOST   /api/take               { item_id? }\nPOST   /api/banner             { title, duration_ms, asset_id? }\nDELETE /api/banner\nPUT    /api/volume             { value: 0..2 }\nPUT    /api/queue/:id/captions  [{ start_ms, end_ms, text }]\nPOST   /api/clear`}</pre>
+            <pre>{`GET    /api/state\nWS     /api/events\nPOST   /api/assets             multipart file\nPOST   /api/queue              { asset_id, after_id? }\nPUT    /api/queue/order        { ids: [...] }\nDELETE /api/queue/:id\nPOST   /api/take               { item_id? }\nPOST   /api/banner             { title, duration_ms, asset_id? }\nDELETE /api/banner\nPUT    /api/volume             { value: 0..2 }\nPUT    /api/queue/:id/captions  [{ start_ms, end_ms, text }]\nPOST   /api/clear\nPOST   /api/publish            { server_url, stream_key }\nDELETE /api/publish`}</pre>
             <p>
               Bound to localhost. The engine continues when this tab closes.
             </p>

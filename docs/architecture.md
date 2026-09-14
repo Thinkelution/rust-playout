@@ -21,7 +21,7 @@ libavformat, libavcodec, libswscale, libswresample and libavutil.
 Only inputs the engine can access are playable. Uploaded media stays in ignored
 `data/`. Output profiles stay fixed during a channel session. The engine decodes
 and re-encodes rather than attempting arbitrary compressed-packet splicing.
-The first release cuts between sources; transitions and RTMP are follow-up work.
+The first release cuts between sources; transitions are follow-up work.
 HLS preview trails live engine state. Published segments/captions are immutable.
 An empty channel renders a slate and silence. A failed source must not end output.
 Queues are bounded: overload must be reported, not converted into unbounded RAM.
@@ -47,3 +47,19 @@ program clock, never by browser timers. Shutdown drains encoders and closes HLS.
 Intended for the GPT-6 Astra Challenge. The supplied screenshot is context;
 official eligibility, deadline/timezone and submission requirements have not
 yet been verified. No submission or public deployment is implied by local work.
+
+## RTMP publisher
+
+H.264/AAC packets are cloned before HLS timestamp rescaling into a bounded
+256-packet queue. A dedicated thread owns a native FLV muxer and RTMP/RTMPS IO.
+The publisher waits for a video keyframe, rebases timestamps to its own origin,
+and skips earlier audio. Encoders remain shared with HLS; global codec headers
+provide FLV extradata and the MPEG-TS muxer restores in-band headers for HLS.
+
+A five-second interrupt deadline bounds native network operations; cancellation
+also interrupts IO. Queue overflow stops publishing rather than blocking the
+render thread or dropping arbitrary compressed packets. Stop/retry is explicit;
+a new worker can start once the previous one has exited. DNS resolver behavior
+can still depend on the native platform. TLS certificate verification is enabled.
+Publisher status counts submitted media bytes, not acknowledgments from YouTube
+or confirmation that a broadcast is publicly live. No stream keys are persisted.
