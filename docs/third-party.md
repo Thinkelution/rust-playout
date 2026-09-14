@@ -13,6 +13,5 @@ See https://ffmpeg.org/legal.html and the installed distribution's license notic
 This notice does not grant additional rights in third-party components.
 
 The FFmpeg build used to link this alpha reports "GPL version 3 or later".
-The repository owner must choose compatible project licensing before the binary
-release is published. Excluding native libraries from the archive does not remove
-this licensing consideration.
+Rust Playout is licensed under GPL-3.0-or-later. See LICENSE in the source and
+binary archives. Dependency notices are included in DEPENDENCY-LICENSES.txt.

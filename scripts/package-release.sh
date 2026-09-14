@@ -9,6 +9,7 @@ name="rust-playout-${version}-macos-arm64"
 mkdir -p "target/packages/$name"
 cp target/release/rust-playout "target/packages/$name/rust-playout"
 codesign --force --sign - "target/packages/$name/rust-playout"
+cp LICENSE "target/packages/$name/LICENSE"
 cp docs/install-macos.md "target/packages/$name/INSTALL.md"
 cp Cargo.lock "target/packages/$name/Cargo.lock"
 python3 scripts/license-notices.py

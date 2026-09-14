@@ -157,3 +157,11 @@ On an Apple Silicon Mac with the development prerequisites installed, run
 `./scripts/package-release.sh`. It builds the frontend, embeds it in the native
 executable, applies a local ad-hoc signature, collects dependency notices and
 writes the `.tar.gz` plus `SHA256SUMS` under `target/packages/`.
+
+## License
+
+Rust Playout is free and open-source software under the
+[GNU General Public License, version 3 or later](LICENSE) (SPDX: `GPL-3.0-or-later`).
+You may redistribute and modify it under those terms. It is provided without
+warranty. Third-party components retain their respective licenses; see
+[third-party notices](docs/third-party.md).

@@ -44,3 +44,11 @@ One channel, local MP4 inputs, CPU composition, fixed 720p30 profile. No pause,
 live inputs, automatic publisher reconnect or YouTube caption forwarding. The
 service has no authentication and must remain local. Old HLS sessions need manual
 retention management. Native media libraries are not included in the download.
+
+## Open-source license
+
+Rust Playout is licensed under **GPL-3.0-or-later**, without warranty. The binary
+archive includes LICENSE and third-party notices. Corresponding project source,
+including build scripts and dependency lockfiles, is provided as
+`rust-playout-0.0.1-alpha-source.tar.gz` and in the `v0.0.1-alpha` tag.
+FFmpeg libraries are installed separately by the user.
