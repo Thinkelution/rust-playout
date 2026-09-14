@@ -160,7 +160,13 @@ pub fn run(handle: Handle, commands: Receiver<Command>, root: PathBuf) -> Result
                         current = None;
                         prepared = None;
                         state.queue.clear();
-                        take = None;
+                        if let Some((pending, _)) = take.take() {
+                            state.event(
+                                "command_cancelled",
+                                "Rundown cleared before take",
+                                Some(pending),
+                            );
+                        }
                     }
                     Action::Volume(v) => {
                         if !v.is_finite() || !(0.0..=2.0).contains(&v) {

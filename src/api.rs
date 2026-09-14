@@ -80,6 +80,19 @@ async fn same_origin(
     request: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
+    let host = request
+        .headers()
+        .get("host")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("");
+    let hostname = host.split(':').next().unwrap_or("");
+    if !matches!(hostname, "127.0.0.1" | "localhost") {
+        return error(
+            StatusCode::FORBIDDEN,
+            "local control requires a loopback host",
+        )
+        .into_response();
+    }
     if let Some(origin) = request.headers().get("origin") {
         let host = request
             .headers()
@@ -110,10 +123,17 @@ async fn state(Extract(app): Extract<App>) -> Json<crate::model::State> {
 async fn events(Extract(app): Extract<App>, ws: WebSocketUpgrade) -> impl IntoResponse {
     let mut updates = app.engine.events.subscribe();
     ws.on_upgrade(move |mut socket| async move {
+        let mut heartbeat = tokio::time::interval(Duration::from_millis(500));
         let initial = app.engine.state.lock().unwrap().clone();
         if socket.send(Message::Text(serde_json::to_string(&initial).unwrap().into())).await.is_err() { return; }
         loop {
             tokio::select! {
+                _ = heartbeat.tick() => {
+                    if app.engine.shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+                        let _ = socket.send(Message::Close(None)).await;
+                        break;
+                    }
+                }
                 state = updates.recv() => {
                     let state = match state { Ok(s) => s, Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => app.engine.state.lock().unwrap().clone(), Err(_) => break };
                     if socket.send(Message::Text(serde_json::to_string(&state).unwrap().into())).await.is_err() { break; }

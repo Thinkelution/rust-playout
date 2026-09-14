@@ -108,7 +108,7 @@ impl Compositor {
         title: &str,
         remaining_ms: u64,
     ) -> Result<av::frame::Video> {
-        let mut out = artwork.cloned().unwrap_or_else(|| canvas(66, 153, 99));
+        let mut out = artwork.cloned().unwrap_or_else(|| canvas(66, 125, 112));
         let mut reduced = av::frame::Video::empty();
         self.shrink.run(program, &mut reduced)?;
         paste(&mut out, &reduced, 0, 0);
