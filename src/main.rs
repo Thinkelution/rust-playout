@@ -7,6 +7,7 @@ mod engine;
 mod integration_tests;
 mod model;
 mod output;
+mod publish;
 mod source;
 use anyhow::Result;
 use std::{
@@ -28,7 +29,7 @@ async fn main() -> Result<()> {
         )
         .init();
     ffmpeg_next::init()?;
-    ffmpeg_next::log::set_level(ffmpeg_next::log::Level::Warning);
+    ffmpeg_next::log::set_level(ffmpeg_next::log::Level::Quiet);
     let root = PathBuf::from(std::env::var("PLAYOUT_DATA").unwrap_or_else(|_| "data".into()));
     std::fs::create_dir_all(root.join("media"))?;
     let root = std::fs::canonicalize(root)?;

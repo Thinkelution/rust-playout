@@ -28,6 +28,8 @@ pub enum Action {
     Take(Option<String>),
     Clear,
     Volume(f32),
+    StartPublish(crate::publish::PublishRequest),
+    StopPublish,
     Banner(BannerRequest, Option<ffmpeg_next::frame::Video>),
     RemoveBanner,
     Captions(String, Vec<Cue>),
@@ -167,6 +169,12 @@ pub fn run(handle: Handle, commands: Receiver<Command>, root: PathBuf) -> Result
                                 Some(pending),
                             );
                         }
+                    }
+                    Action::StartPublish(request) => {
+                        output.start_publish(request)?;
+                    }
+                    Action::StopPublish => {
+                        output.stop_publish();
                     }
                     Action::Volume(v) => {
                         if !v.is_finite() || !(0.0..=2.0).contains(&v) {
@@ -343,6 +351,11 @@ pub fn run(handle: Handle, commands: Receiver<Command>, root: PathBuf) -> Result
             )?;
         }
         output.write(&mut picture, tick, &audio)?;
+        let publish = output.publish_state();
+        if publish.status != state.publish.status {
+            state.event("publish_status", publish.message.clone(), None);
+        }
+        state.publish = publish;
         captions.tick(state.program_ms, caption_text)?;
         state.current = current.as_ref().map(|c| Playing {
             item: c.item.clone(),

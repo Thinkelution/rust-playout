@@ -68,6 +68,24 @@ def run():
         try:
             initial = until(lambda s: s["status"] == "live")
             assert len(initial["assets"]) == 3
+            request("/api/publish", "POST", {"server_url": "file:///tmp/output", "stream_key": "secret-smoke-key"}, expected=400)
+            # A server that accepts TCP but never completes RTMP must not stall the channel.
+            with socket.socket() as stalled:
+                stalled.bind(("127.0.0.1", 0))
+                stalled.listen(1)
+                stalled.settimeout(5)
+                request("/api/publish", "POST", {"server_url": f"rtmp://127.0.0.1:{stalled.getsockname()[1]}/live", "stream_key": "secret-smoke-key"})
+                connection, _ = stalled.accept()
+                with connection:
+                    running = until(lambda s: s["program_ms"] > initial["program_ms"] + 1000)
+                    assert running["publish"]["status"] == "connecting"
+                    assert "secret-smoke-key" not in json.dumps(running)
+                    request("/api/volume", "PUT", {"value": 1})
+                    request("/api/publish", "DELETE")
+                    until(lambda s: s["publish"]["status"] == "idle")
+            log.flush()
+            assert "secret-smoke-key" not in Path(temp, "service.log").read_text()
+
             request("/api/queue", "POST", {"asset_id": "missing"}, expected=400)
             request("/api/volume", "PUT", {"value": -1}, expected=400)
             request("/api/banner", "POST", {"title": "Bad", "duration_ms": 0}, expected=400)

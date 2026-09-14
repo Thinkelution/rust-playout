@@ -24,6 +24,7 @@ pub struct Output {
     fifo: [VecDeque<f32>; 2],
     audio_pts: i64,
     closed: bool,
+    publisher: Option<crate::publish::Publisher>,
 }
 
 impl Output {
@@ -33,10 +34,6 @@ impl Output {
         } else {
             av::format::output(path)?
         };
-        let global = mux
-            .format()
-            .flags()
-            .contains(av::format::Flags::GLOBAL_HEADER);
         let vc = av::encoder::find_by_name("libx264")
             .context("FFmpeg libraries must include libx264")?;
         let mut video = av::codec::context::Context::new_with_codec(vc)
@@ -50,7 +47,7 @@ impl Output {
         video.set_gop((FPS * 2) as u32);
         video.set_max_b_frames(0);
         video.set_bit_rate(2_500_000);
-        if global {
+        {
             video.set_flags(av::codec::Flags::GLOBAL_HEADER);
         }
         let mut options = av::Dictionary::new();
@@ -73,7 +70,7 @@ impl Output {
         audio.set_format(AUDIO_FORMAT);
         audio.set_bit_rate(128_000);
         audio.set_time_base((1, RATE as i32));
-        if global {
+        {
             audio.set_flags(av::codec::Flags::GLOBAL_HEADER);
         }
         let audio = audio.open_as(ac)?;
@@ -109,6 +106,7 @@ impl Output {
             fifo: Default::default(),
             audio_pts: 0,
             closed: false,
+            publisher: None,
         })
     }
 
@@ -161,6 +159,9 @@ impl Output {
                 Ok(()) => {
                     packet.set_stream(0);
                     packet.set_duration(1);
+                    if let Some(publisher) = &self.publisher {
+                        publisher.send(&packet, (1, FPS as i32).into());
+                    }
                     packet.rescale_ts((1, FPS as i32), tb);
                     packet.write_interleaved(&mut self.mux)?;
                 }
@@ -182,6 +183,9 @@ impl Output {
             match self.audio.receive_packet(&mut packet) {
                 Ok(()) => {
                     packet.set_stream(1);
+                    if let Some(publisher) = &self.publisher {
+                        publisher.send(&packet, (1, RATE as i32).into());
+                    }
                     packet.rescale_ts((1, RATE as i32), tb);
                     packet.write_interleaved(&mut self.mux)?;
                 }
@@ -206,6 +210,35 @@ impl Output {
         self.drain_audio()?;
         self.mux.write_trailer()?;
         Ok(())
+    }
+
+    pub fn start_publish(&mut self, request: crate::publish::PublishRequest) -> Result<(), String> {
+        if self.publisher.as_ref().is_some_and(|p| !p.finished()) {
+            return Err("Stop the current publisher and wait for it to disconnect first".into());
+        }
+        self.publisher = Some(crate::publish::Publisher::start(
+            request,
+            [
+                av::codec::Parameters::from(&self.video),
+                av::codec::Parameters::from(&self.audio),
+            ],
+        )?);
+        Ok(())
+    }
+    #[cfg(test)]
+    pub fn publisher_finished(&self) -> bool {
+        self.publisher.as_ref().is_none_or(|p| p.finished())
+    }
+    pub fn stop_publish(&self) {
+        if let Some(p) = &self.publisher {
+            p.stop();
+        }
+    }
+    pub fn publish_state(&self) -> crate::publish::PublishState {
+        self.publisher
+            .as_ref()
+            .map(|p| p.state())
+            .unwrap_or_default()
     }
 
     pub fn caption_offset(&self) -> u64 {
