@@ -73,7 +73,7 @@ pub fn router(app: App) -> Router {
         .route("/api/banner", post(banner).delete(remove_banner))
         .nest_service("/hls", ServeDir::new(root.join("hls")))
         .nest_service("/media", ServeDir::new(root.join("media")))
-        .fallback_service(ServeDir::new("web/dist"))
+        .fallback(crate::web_assets::serve)
         .layer(DefaultBodyLimit::max(256 * 1024 * 1024))
         .layer(axum::middleware::from_fn(same_origin))
         .with_state(app)

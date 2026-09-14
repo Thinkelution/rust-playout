@@ -286,7 +286,7 @@ function App() {
           <b>
             rust<span>/</span>playout
           </b>
-          <span className="alpha">PREVIEW 0.1</span>
+          <span className="alpha">0.0.1 ALPHA</span>
         </a>
         <nav>
           <span className="nav-active">Control room</span>

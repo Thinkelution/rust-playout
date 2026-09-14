@@ -27,7 +27,7 @@ def run():
         base = f"http://127.0.0.1:{port}"
         env = dict(os.environ, PLAYOUT_PORT=str(port), PLAYOUT_DATA=temp)
         log = open(Path(temp) / "service.log", "w+")
-        process = subprocess.Popen([str(ROOT / "target/release/rust-playout"), "--demo"], cwd=ROOT, env=env, stdout=log, stderr=log)
+        process = subprocess.Popen([str(ROOT / "target/release/rust-playout"), "--demo"], cwd=temp, env=env, stdout=log, stderr=log)
 
         def request(path, method="GET", body=None, headers=None, expected=200):
             data = json.dumps(body).encode() if body is not None else None
@@ -67,6 +67,12 @@ def run():
 
         try:
             initial = until(lambda s: s["status"] == "live")
+            html = request("/")
+            assert b"<div id=\"root\">" in html
+            import re
+            script = re.search(rb'src="([^"]+\.js)"', html).group(1).decode()
+            assert b"Start channel" in request(script)
+            request("/missing-file.js", expected=404)
             assert len(initial["assets"]) == 3
             request("/api/publish", "POST", {"server_url": "file:///tmp/output", "stream_key": "secret-smoke-key"}, expected=400)
             # A server that accepts TCP but never completes RTMP must not stall the channel.

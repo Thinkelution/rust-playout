@@ -6,6 +6,25 @@ media and insert timed L-band ads while one HLS channel keeps running.
 Built in Rust using **FFmpeg libraries directly**, not the `ffmpeg` executable.
 See [architecture](docs/architecture.md) for scope and verification gates.
 
+## Download 0.0.1 alpha
+
+[**Download the macOS Apple Silicon release**](https://github.com/Thinkelution/rust-playout/releases/tag/v0.0.1-alpha)
+
+The executable includes the web UI. Rust, Node.js and a source checkout are not
+needed to run it. **Requires Homebrew FFmpeg 9 libraries**; tested on macOS 26.5.1
+(arm64). Native libraries are not bundled. This alpha is not notarized.
+See the [installation guide](docs/install-macos.md) for checksums, setup and limits.
+
+## Control room preview
+
+Actual 0.0.1-alpha UI with generated demo clips and a timed L-shaped ad:
+
+![Live program monitor, channel start/stop controls and editable rundown](docs/images/control-room.jpg)
+
+Media, ad controls, captions and RTMP publishing:
+
+![Caption and RTMP controls with media and ad panels](docs/images/publishing-controls.jpg)
+
 ## Development prerequisites
 
 - Rust toolchain, Node.js 22+, pkg-config and Clang/libclang.
@@ -38,7 +57,8 @@ proxies `/api`, `/hls` and `/media` to the service. Use the production build abo
 for the same-origin control checks; the Vite proxy preserves the browser Host.
 
 Environment: `PLAYOUT_PORT` (default `8787`), `PLAYOUT_DATA` (default `data`),
-`RUST_LOG` for logging. Run the binary from the repository root to serve `web/dist`.
+`RUST_LOG` for logging. The production web UI is embedded at build time; the binary
+can run from any working directory. Build `web/dist` before compiling Rust.
 Ctrl-C stops the server and drains the encoders.
 
 ## Implemented
@@ -130,3 +150,10 @@ API: `POST /api/channel/stop` and `POST /api/channel/start`. Stop acknowledges t
 request; watch `state.status` transition through `stopping` to `stopped`. Start
 while stopping is rejected. Repeating start on a live channel or stop on a stopped
 channel is harmless. Take, ad insertion and publishing require a live channel.
+
+## Build a release archive
+
+On an Apple Silicon Mac with the development prerequisites installed, run
+`./scripts/package-release.sh`. It builds the frontend, embeds it in the native
+executable, applies a local ad-hoc signature, collects dependency notices and
+writes the `.tar.gz` plus `SHA256SUMS` under `target/packages/`.

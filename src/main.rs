@@ -9,6 +9,7 @@ mod model;
 mod output;
 mod publish;
 mod source;
+mod web_assets;
 use anyhow::Result;
 use std::{
     collections::BTreeMap,
@@ -28,6 +29,10 @@ async fn main() -> Result<()> {
                 .unwrap_or_else(|_| "rust_playout=info,tower_http=info".into()),
         )
         .init();
+    if std::env::args().any(|v| v == "--version" || v == "-V") {
+        println!("rust-playout {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
     ffmpeg_next::init()?;
     ffmpeg_next::log::set_level(ffmpeg_next::log::Level::Quiet);
     let root = PathBuf::from(std::env::var("PLAYOUT_DATA").unwrap_or_else(|_| "data".into()));
