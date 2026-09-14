@@ -130,8 +130,16 @@ impl State {
 
     pub fn event(&mut self, kind: &str, message: impl Into<String>, command_id: Option<String>) {
         let sequence = self.events.back().map_or(1, |e| e.sequence + 1);
-        self.events.push_back(Event { sequence, program_ms: self.program_ms, kind: kind.into(), message: message.into(), command_id });
-        if self.events.len() > 100 { self.events.pop_front(); }
+        self.events.push_back(Event {
+            sequence,
+            program_ms: self.program_ms,
+            kind: kind.into(),
+            message: message.into(),
+            command_id,
+        });
+        if self.events.len() > 100 {
+            self.events.pop_front();
+        }
     }
 }
 
@@ -140,7 +148,9 @@ pub fn validate_order(items: &[QueueItem], ids: &[String]) -> Result<(), String>
     let given: std::collections::BTreeSet<_> = ids.iter().collect();
     if expected != given || ids.len() != items.len() {
         Err("order must contain each upcoming item exactly once".into())
-    } else { Ok(()) }
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -148,10 +158,37 @@ mod tests {
     use super::*;
     #[test]
     fn rejects_duplicate_reorders_and_invalid_timers() {
-        let items = vec![QueueItem{id:"a".into(),asset_id:"x".into(),captions:vec![]}, QueueItem{id:"b".into(),asset_id:"x".into(),captions:vec![]}];
+        let items = vec![
+            QueueItem {
+                id: "a".into(),
+                asset_id: "x".into(),
+                captions: vec![],
+            },
+            QueueItem {
+                id: "b".into(),
+                asset_id: "x".into(),
+                captions: vec![],
+            },
+        ];
         assert!(validate_order(&items, &["b".into(), "a".into()]).is_ok());
         assert!(validate_order(&items, &["a".into(), "a".into()]).is_err());
-        assert!(BannerRequest{duration_ms:0,title:"Ad".into(),asset_id:None}.validate().is_err());
-        assert!(Cue{start_ms:100,end_ms:50,text:"Bad".into()}.validate().is_err());
+        assert!(
+            BannerRequest {
+                duration_ms: 0,
+                title: "Ad".into(),
+                asset_id: None
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            Cue {
+                start_ms: 100,
+                end_ms: 50,
+                text: "Bad".into()
+            }
+            .validate()
+            .is_err()
+        );
     }
 }
