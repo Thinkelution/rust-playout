@@ -6,6 +6,30 @@ media and insert timed L-band ads while one HLS channel keeps running.
 Built in Rust using **FFmpeg libraries directly**, not the `ffmpeg` executable.
 See [architecture](docs/architecture.md) for scope and verification gates.
 
+## Install with Homebrew
+
+On Apple Silicon with macOS 26 (Tahoe) or newer:
+
+```sh
+brew install thinkelution/tap/rust-playout
+rust-playout --demo
+```
+
+Open **http://127.0.0.1:8787**. Homebrew installs FFmpeg as a dependency and
+verifies the release archive checksum. No Rust, Node.js or source checkout is
+needed. This is our [third-party tap](https://github.com/Thinkelution/homebrew-tap),
+not a homebrew/core package. Homebrew must be installed at `/opt/homebrew`.
+
+To keep uploaded media in a stable directory:
+
+```sh
+PLAYOUT_DATA="$HOME/Library/Application Support/Rust Playout" rust-playout --demo
+```
+
+The executable remains ad-hoc signed; this installation does not disable
+Gatekeeper or change macOS security settings. A future FFmpeg major upgrade
+requires a compatible Rust Playout binary. No background service starts on install.
+
 ## Download 0.0.1 alpha
 
 [**Download the macOS Apple Silicon release**](https://github.com/Thinkelution/rust-playout/releases/tag/v0.0.1-alpha)

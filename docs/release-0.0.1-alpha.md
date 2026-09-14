@@ -2,6 +2,16 @@
 
 First downloadable alpha: a Rust playout engine with an embedded web control room.
 
+## Homebrew (Apple Silicon, macOS 26+)
+
+```sh
+brew install thinkelution/tap/rust-playout
+rust-playout --demo
+```
+
+Homebrew installs the matching release archive and FFmpeg dependency. Requires
+Homebrew at `/opt/homebrew`. See the [tap](https://github.com/Thinkelution/homebrew-tap).
+
 ## Download and run
 
 Download `rust-playout-0.0.1-alpha-macos-arm64.tar.gz` and `SHA256SUMS`.

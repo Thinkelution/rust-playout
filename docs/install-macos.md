@@ -17,7 +17,22 @@ Native media libraries are not bundled. This is not a fully standalone or
 universal macOS application. Intel Mac, Windows and Linux binaries are not
 provided in this release.
 
-## Install and launch
+## Homebrew installation
+
+On macOS 26 (Tahoe) or newer with Apple Silicon and Homebrew at `/opt/homebrew`:
+
+```sh
+brew install thinkelution/tap/rust-playout
+rust-playout --demo
+```
+
+This uses our [Homebrew tap](https://github.com/Thinkelution/homebrew-tap) and
+installs FFmpeg as a dependency. Open http://127.0.0.1:8787. No background process
+starts during installation. Update with `brew update` followed by
+`brew upgrade thinkelution/tap/rust-playout`; remove with `brew uninstall rust-playout`.
+Your data is retained when uninstalling.
+
+## Manual archive installation
 
 1. Download the macOS arm64 `.tar.gz` and `SHA256SUMS` from the same release.
 2. In the download directory, verify the archive and extract it:
